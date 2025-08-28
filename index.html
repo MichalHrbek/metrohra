@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metro hra</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            font-family: sans-serif;
+        }
+
+        .game-content {
+            display: flex;
+            padding-top: 2em;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #metroPlan {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #guesses {
+            display: flex;
+            flex-direction: column;
+            min-width: 15em;
+            padding: 0em 1em 0em 1em;
+            min-width: 75%;
+        }
+
+        .guess {
+            padding: 1em;
+            text-align: center;
+        }
+
+        .correct {
+            background-color: #6ca965;
+        }
+
+        .close {
+            background-color: #c8b653;
+        }
+
+        .missed {
+            background-color: #787c7f;
+        }
+
+        .plan-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        fieldset {
+            display: flex;
+            gap: 1em;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+
+        select {
+            flex-grow: 1;
+            text-align: center;
+            font-size: 16px;
+            border: 1px solid #333;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+            max-width: 80%;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            margin: 5em auto;
+            position: relative;
+        }
+
+        .close-button {
+            float: right;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .span-button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-content">
+        <div id="guesses">
+            <fieldset id="stationGuessSelector"></fieldset>
+            <div class="guess">Pokus 1</div>
+            <div class="guess">Pokus 2</div>
+            <div class="guess">Pokus 3</div>
+            <div class="guess">Pokus 4</div>
+            <div class="guess">Pokus 5</div>
+            <div class="guess">Pokus 6</div>
+        </div>
+        <div class="plan-container">
+            <object data="metro_plan.svg" id="metroPlan" type="image/svg+xml"></object>
+        </div>
+        <div>
+            <span class="span-button" onclick="window.rulesModal.style.display = 'block'">Pravidla</span>
+            &nbsp;
+            <span class="span-button" onclick="window.licenseModal.style.display = 'block'">Licence</span>
+        </div>
+    </div>
+
+    <div class="modal" id="rulesModal">
+        <div class="modal-content">
+            <span class="close-button" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <h2>Pravidla hry</h2>
+            <p>
+                Cílem hry je najít skrytou náhodně vybranou stanici.
+            </p>
+            <p>
+                Vyber stanici metra v horním menu a dozvíš se jak daleko je od cíle. Pokud si nejsi jistý umístěním stanice tak klikni na stanici na mapě dole.
+            </p>
+            <p>
+                Máš 6 pokusů včetně použítí mapy.
+            </p>
+            <p>
+                Pokud je cíl na jiné lince tak vzdálenost počítá s jedním přestupem i když to není nejkratší trasa na počet stanic.
+            </p>
+        </div>
+    </div>
+
+    <div class="modal" id="resultsModal">
+        <div class="modal-content">
+            <span class="close-button" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <h2>Výsledky</h2>
+            <p id="results"></p>
+        </div>
+    </div>
+
+    <div class="modal" id="licenseModal">
+        <div class="modal-content">
+            <span class="close-button" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <h2>Licence</h2>
+            <p>
+                <b>Schéma linek pražského metra:</b>
+                <br>
+                Licence: <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
+                <br>
+                Autor: <a href="https://commons.wikimedia.org/wiki/User:Zirland">Zirland</a>
+                <br>
+                Upraveno pro vlastní využítí
+            </p>
+        </div>
+    </div>
+
+</body>
+
+<script>
+var stops;
+var lines;
+var numGuesses = 0;
+const MAX_GUESS = 6;
+const selectSet = document.getElementById("stationGuessSelector");
+var secretDestination;
+
+function guessMade() {
+    if (numGuesses == MAX_GUESS) {
+        disableGuessing();
+        window.resultsModal.style.display = "block";
+    }
+}
+
+function handleGuess(guess_id) {
+    if (numGuesses >= MAX_GUESS) return;
+    numGuesses += 1;
+    if (guess_id == secretDestination) {
+        fillGuess(`${stops[secretDestination].name} je správná odpověď!`, "correct");
+        disableGuessing();
+        window.results.textContent += `Dostal jsi se tam v ${numGuesses} tazích!`;
+        window.resultsModal.style.display = "block";
+    } else {
+        const path = findPath(stops[guess_id], stops[secretDestination]);
+        fillGuess(`${stops[guess_id].name} - ${path.length-1} stanic`, "close")
+    }
+    guessMade();
+}
+
+function getNameHint(stopId) {
+    numGuesses += 1;
+    const text = window.metroPlan.contentDocument.getElementById("text_"+stopId);
+    if (text.style.display == "block") return;
+    text.style.display = "block";
+    fillGuess(`Odhaleno ${stops[stopId].name}`, "missed");
+    guessMade();
+}
+
+function fillGuess(text, addClass) {
+    window.guesses.children[numGuesses].innerText = text;
+    if (addClass) {
+        window.guesses.children[numGuesses].classList.add(addClass);
+    }
+}
+
+function setupSvg() {
+    const svg = window.metroPlan.contentDocument;
+    Object.keys(stops).forEach(key => {
+        const el = svg.getElementById(key);
+        if (el) {
+            el.onclick = () => {
+                getNameHint(key);
+            };
+        }
+    });
+
+}
+
+function isOnSameLine(stopA, stopB) {
+    return stopA.lines.some(line => stopB.lines.includes(line));
+}
+
+function findPath(start, end, source = null) {
+    if (start == end) return [end];
+    for (let i = 0; i < start.connections.length; i++) {
+        const target = stops[start.connections[i]];
+        if (target == source) {
+            continue
+        }
+        if (!(isOnSameLine(end,target) || (isOnSameLine(start,target) && source ? isOnSameLine(source,target) : true))) {
+            continue
+        }
+        const p = findPath(target, end, start);
+        if (p) return p.concat([start]);
+    }
+}
+
+function disableGuessing() {
+    selectSet.disabled = true;
+}
+
+async function init() {
+    const data = await fetch("stops.json").then(r => r.json());
+    stops = data.stops;
+    lines = data.lines;
+    const stop_ids = Object.keys(stops);
+
+    secretDestination = stop_ids[Math.floor(Math.random() * stop_ids.length)]
+    window.results.textContent = `Cíl byl ${stops[secretDestination].name}. `
+
+    Object.keys(lines).forEach(line_name => {
+        const line = lines[line_name];
+        line.sort();
+        const select = document.createElement("select");
+        
+        select.onchange = (event) => {
+            if (!select.value) return;
+            handleGuess(select.value);
+            select.value = "";
+        }
+        
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = line_name;
+        select.appendChild(option);
+
+        for (let id of line) {
+            const option = document.createElement("option");
+            option.value = id;
+            option.textContent = stops[id].name;
+            select.appendChild(option);
+        }
+
+        selectSet.appendChild(select);
+    });
+
+    if (window.metroPlan.contentDocument) {
+        setupSvg();
+    } else {
+        window.metroPlan.addEventListener("load", setupSvg);
+    }
+}
+
+init();
+</script>
+</html>
