@@ -150,7 +150,7 @@
 
     <div class="modal" id="resultsModal">
         <div class="modal-content">
-            <span class="close-button" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <span class="close-button" onclick="this.parentElement.parentElement.style.display = 'none'">&times;</span>
             <h2>Výsledky</h2>
             <p id="results"></p>
         </div>
@@ -158,7 +158,7 @@
 
     <div class="modal" id="licenseModal">
         <div class="modal-content">
-            <span class="close-button" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <span class="close-button" onclick="this.parentElement.parentElement.style.display = 'none'">&times;</span>
             <h2>Licence</h2>
             <p>
                 <b>Schéma linek pražského metra:</b>
@@ -296,6 +296,11 @@ async function init() {
     } else {
         window.metroPlan.addEventListener("load", setupSvg);
     }
+}
+
+if (!localStorage.getItem('welcomeShown')) {
+    this.rulesModal.style.display = "block";
+    localStorage.setItem('welcomeShown', 'true');
 }
 
 init();
