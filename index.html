@@ -182,6 +182,12 @@ const MAX_GUESS = 6;
 const selectSet = document.getElementById("stationGuessSelector");
 var secretDestination;
 
+// This handles a race condition between loading stops and loading the svg.
+// There is no realiable way to check if an <object> element has been loaded on chrome.
+// Another way would be to hardcode the onclick in the svg.
+var isSvgLoaded = false;
+var isSvgSetup = false;
+
 function guessMade() {
     if (numGuesses == MAX_GUESS) {
         disableGuessing();
@@ -221,6 +227,10 @@ function fillGuess(text, addClass) {
 }
 
 function setupSvg() {
+    if (isSvgSetup) return;
+    if (!isSvgLoaded) return;
+    if (!stops) return;
+    isSvgSetup = true;
     const svg = window.metroPlan.contentDocument;
     Object.keys(stops).forEach(key => {
         const el = svg.getElementById(key);
@@ -228,6 +238,8 @@ function setupSvg() {
             el.onclick = () => {
                 getNameHint(key);
             };
+        } else {
+            console.log("Station not found in svg");
         }
     });
 
@@ -257,10 +269,16 @@ function disableGuessing() {
 }
 
 async function init() {
+    window.metroPlan.addEventListener("load", () => {
+        isSvgLoaded = true;
+        setupSvg();
+    });
+
     const data = await fetch("stops.json").then(r => r.json());
     stops = data.stops;
     lines = data.lines;
     const stop_ids = Object.keys(stops);
+    setupSvg();
 
     secretDestination = stop_ids[Math.floor(Math.random() * stop_ids.length)]
     window.results.textContent = `Cíl byl ${stops[secretDestination].name}. `
@@ -290,12 +308,6 @@ async function init() {
 
         selectSet.appendChild(select);
     });
-
-    if (window.metroPlan.contentDocument) {
-        setupSvg();
-    } else {
-        window.metroPlan.addEventListener("load", setupSvg);
-    }
 }
 
 if (!localStorage.getItem('welcomeShown')) {
