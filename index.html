@@ -211,9 +211,9 @@ function handleGuess(guess_id) {
 }
 
 function getNameHint(stopId) {
-    numGuesses += 1;
     const text = window.metroPlan.contentDocument.getElementById("text_"+stopId);
     if (text.style.display == "block") return;
+    numGuesses += 1;
     text.style.display = "block";
     fillGuess(`Odhaleno ${stops[stopId].name}`, "missed");
     guessMade();
