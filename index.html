@@ -143,7 +143,7 @@
                 Máš 6 pokusů včetně použítí mapy.
             </p>
             <p>
-                Pokud je cíl na jiné lince tak vzdálenost počítá s jedním přestupem i když to není nejkratší trasa na počet stanic.
+                Pozor, nejkratší krasa může mít dva přestupy!
             </p>
         </div>
     </div>
@@ -204,8 +204,8 @@ function handleGuess(guess_id) {
         window.results.textContent += `Dostal jsi se tam v ${numGuesses} tazích!`;
         window.resultsModal.style.display = "block";
     } else {
-        const path = findPath(stops[guess_id], stops[secretDestination]);
-        fillGuess(`${stops[guess_id].name} - ${path.length-1} stanic`, "close")
+        const distance = dfsDistance(guess_id, secretDestination);
+        fillGuess(`${stops[guess_id].name} - ${distance} stanic`, "close")
     }
     guessMade();
 }
@@ -249,19 +249,29 @@ function isOnSameLine(stopA, stopB) {
     return stopA.lines.some(line => stopB.lines.includes(line));
 }
 
-function findPath(start, end, source = null) {
-    if (start == end) return [end];
-    for (let i = 0; i < start.connections.length; i++) {
-        const target = stops[start.connections[i]];
-        if (target == source) {
-            continue
+function dfsDistance(start, target) {
+    let minDistance = Infinity;
+    const visited = new Set();
+
+    function dfs(node, distance) {
+        if (node === target) {
+            minDistance = Math.min(minDistance, distance);
+            return;
         }
-        if (!(isOnSameLine(end,target) || (isOnSameLine(start,target) && source ? isOnSameLine(source,target) : true))) {
-            continue
+
+        visited.add(node);
+
+        for (const neighbor of stops[node].connections) {
+            if (!visited.has(neighbor) && distance + 1 < minDistance) {
+                dfs(neighbor, distance + 1);
+            }
         }
-        const p = findPath(target, end, start);
-        if (p) return p.concat([start]);
+
+        visited.delete(node); // allow other paths to reuse this node
     }
+
+    dfs(start, 0);
+    return minDistance;
 }
 
 function disableGuessing() {
